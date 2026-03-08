@@ -92,7 +92,7 @@ export default function Home() {
       }
 
       if (!res.ok) {
-        if (res.status === 429 || data.message?.toLowerCase().includes("quota") || data.message?.toLowerCase().includes("limit") || data.message?.toLowerCase().includes("exhausted")) {
+        if (res.status === 429 || data.error === "QUOTA_EXCEEDED") {
           setShowQuotaError(true);
         } else {
           setError(data.message || `Error ${res.status}: Terjadi kesalahan.`);
@@ -155,11 +155,10 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
           >
-            Roast profil{" "}
-            <span className="gradient-text inline-flex items-center gap-2 align-bottom">
-               <XIcon size="0.85em" /> mu
+            <span className="gradient-text">
+               RoastX
             </span>{" "}
-            pake AI <span className="animate-flame ml-1 inline-block">🔥</span>
+            <span className="animate-flame ml-1 inline-block">🔥</span>
           </motion.h1>
 
           <motion.p
