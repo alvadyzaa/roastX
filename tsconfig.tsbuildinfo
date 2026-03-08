@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/components/apiquotamodal.tsx","./src/components/loadingstate.tsx","./src/components/navbar.tsx","./src/components/profilecard.tsx","./src/components/roastcard.tsx","./src/components/toast.tsx","./src/components/visitorcounter.tsx","./src/components/welcomemodal.tsx","./src/lib/gemini.ts","./src/lib/nitter.ts"],"version":"5.9.3"}
