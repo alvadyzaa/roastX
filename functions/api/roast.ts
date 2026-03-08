@@ -69,7 +69,7 @@ async function fetchProfile(username: string) {
 // ── Build prompt ─────────────────────────────────────────────────────────────
 function buildPrompt(p: Awaited<ReturnType<typeof fetchProfile>> & object) {
   const hasRatio = p!.followers !== "0" && p!.following !== "0";
-  return `Roast profil Twitter/X ini sepedas mungkin pakai bahasa gaul Gen-Z (Indonesia). SPESIFIK ke datanya. Buat 2-3 paragraf dengan panjang sedang (jangan terlalu pendek cuma 1-2 kalimat, tapi jangan terlalu panjang juga). JANGN bahas SARA/agama.
+  return `Roast profil Twitter/X ini sepedas mungkin pakai bahasa gaul Gen-Z (Indonesia). SPESIFIK ke datanya. Buat TEPAT 2 paragraf dengan panjang sedang (jangan terlalu singkat spt 1 kalimat, targetkan 3-4 kalimat per paragraf). JANGAN bahas SARA/agama.
 DATA:
 - Nama: ${p!.name} | Username: @${p!.username}
 - Bio: ${p!.bio || "grup wa keluarga aja males invite dia"}
