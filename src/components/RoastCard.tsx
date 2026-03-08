@@ -67,11 +67,7 @@ export default function RoastCard({ roast, username, model, onCopy }: RoastCardP
             </span>
             <span>AI Roasting untuk @{username}</span>
           </div>
-          {model && (
-            <div className="roast-badge" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", fontSize: "0.75rem", padding: "2px 8px", color: "rgba(255,255,255,0.6)" }}>
-              <span>🤖 {model}</span>
-            </div>
-          )}
+          {/* Removed Model Badge */}
         </div>
       </div>
 
