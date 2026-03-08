@@ -69,35 +69,15 @@ async function fetchProfile(username: string) {
 // ── Build prompt ─────────────────────────────────────────────────────────────
 function buildPrompt(p: Awaited<ReturnType<typeof fetchProfile>> & object) {
   const hasRatio = p!.followers !== "0" && p!.following !== "0";
-  return `Kamu adalah komika stand-up paling savage di Indonesia yang khusus nge-roast profil Twitter/X orang.
+  return `Roast profil Twitter/X ini sepedas mungkin pakai bahasa gaul Gen-Z (Indonesia). SPESIFIK ke datanya. Max 2-3 paragraf pendek (3 kalimat/paragraf). JANGN bahas SARA/agama.
+DATA:
+- Nama: ${p!.name} | Username: @${p!.username}
+- Bio: ${p!.bio || "grup wa keluarga aja males invite dia"}
+- Followers: ${p!.followers || "0"} | Following: ${p!.following || "0"}
+- Tweet: ${p!.tweetCount || "0"} | Join: ${p!.joinedDate || "?"} | Verified: ${p!.verified ? "Ya" : "Enggak"}
+${hasRatio ? `- Rasio F/F: ${p!.followers}/${p!.following}` : ""}
 
-TUGAS:
-Buat roasting PEDAS, SARKASTIK, DETAIL, dan SUPER LUCU (gaya anak muda Jakarta/Gen-Z, pakai bahasa gaul Indonesia) untuk profil Twitter/X berikut ini.
-
-DATA PROFIL:
-- Nama: ${p!.name}
-- Username: @${p!.username}
-- Bio: ${p!.bio || "(kosong, gak ada bio sama sekali — ini udah roast sendiri sih)"}
-- Followers: ${p!.followers || "gak diketahui"}
-- Following: ${p!.following || "gak diketahui"}
-- Total Tweet/Post: ${p!.tweetCount || "gak diketahui"}
-- Bergabung sejak: ${p!.joinedDate || "gak diketahui"}
-- Lokasi: ${p!.location || "disembunyiin (malu kali)"}
-- Verified: ${p!.verified ? "Ya, centang biru" : "Kagak, miskin privilege"}
-${hasRatio ? `- Rasio: ${p!.followers} followers vs ${p!.following} following` : ""}
-
-ATURAN ROASTING:
-1. Gunakan bahasa gaul Gen-Z kekinian: "literally", "bro", "anjir", "gila sih", "kok bisa", "auto", "frfr", "no cap", "gaskeun", dll
-2. Roast SPESIFIK dan DALAM berdasarkan setiap data yang ada — jangan generik, gali lebih dalam
-3. Tulis MAKSIMAL 2-3 paragraf yang padat dan lucu (tiap paragraf 3-4 kalimat max):
-    - Paragraf 1: Username, nama, dan frekuensi nge-tweet
-    - Paragraf 2: Angka followers, rasionya, dan bio
-    - Paragraf 3: Penutup sarkas tapi ada sedikit encouragement lucu
-4. JANGAN singgung agama, ras, suku, atau isu SARA — roast soal aktivitas X-nya aja
-5. Tone: kayak temen yang lagi bully temen sendiri tapi sayang — bukan hate speech 😂
-6. WAJIB selesaikan 2-3 paragraf tersebut, jangan dipotong di tengah.
-
-PENTING: Output HANYA teks roasting langsung tanpa intro/outro/disclaimer apapun. JANGAN berhenti di tengah kalimat.`;
+Tulis langsung roastingnya tanpa intro/outro.`;
 }
 
 // ── Call Gemini REST API ─────────────────────────────────────────────────────
@@ -158,6 +138,22 @@ export const onRequestPost = async (context: EventContext<Env, any, any>) => {
       return Response.json({ error: "MISSING_USERNAME", message: "Username wajib diisi." }, { status: 400 });
     }
 
+    // ── CACHE CHECK (Cloudflare Cache API) ──────────────────────────────────
+    // Creating a dummy Request so we can use Cache API which only accepts HTTP Requests as keys
+    const cacheUrl = new URL(req.url);
+    cacheUrl.pathname = `/roast-cache/${username.toLowerCase()}`;
+    const cacheKey = new Request(cacheUrl.toString(), { method: "GET" });
+    const cache = (caches as any).default;
+    
+    try {
+      const cachedResponse = await cache.match(cacheKey);
+      if (cachedResponse) {
+        return cachedResponse; // Return heavily optimized cached result immediately!
+      }
+    } catch (e) {
+      // ignore cache errors just fall through
+    }
+
     // Load available API keys (MUST BE STATIC IN EDGE RUNTIME)
     const GEMINI_KEYS: string[] = [];
 
@@ -199,7 +195,18 @@ export const onRequestPost = async (context: EventContext<Env, any, any>) => {
         try {
           const text = await callGemini(key, model, prompt);
           if (text) {
-            return Response.json({ profile, roast: text, generatedAt: new Date().toISOString(), model });
+            const finalResponse = Response.json({ profile, roast: text, generatedAt: new Date().toISOString(), model });
+            
+            // Save to Cache for 24 hours (86400 seconds)
+            try {
+              const resToCache = new Response(finalResponse.clone().body, finalResponse);
+              resToCache.headers.set("Cache-Control", "public, max-age=86400");
+              context.waitUntil(cache.put(cacheKey, resToCache));
+            } catch (ce) {
+               // Ignore cache write errors
+            }
+            
+            return finalResponse;
           }
         } catch (err) {
           const e = err as any;
