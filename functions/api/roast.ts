@@ -89,16 +89,13 @@ ${hasRatio ? `- Rasio: ${p!.followers} followers vs ${p!.following} following` :
 ATURAN ROASTING:
 1. Gunakan bahasa gaul Gen-Z kekinian: "literally", "bro", "anjir", "gila sih", "kok bisa", "auto", "frfr", "no cap", "gaskeun", dll
 2. Roast SPESIFIK dan DALAM berdasarkan setiap data yang ada — jangan generik, gali lebih dalam
-3. Tulis 5-6 paragraf yang padat dan panjang (minimal 3-4 kalimat per paragraf), tiap paragraf fokus pada satu aspek berbeda:
-   - Paragraf 1: Username dan nama
-   - Paragraf 2: Bio (atau ketiadaan bio)
-   - Paragraf 3: Angka followers, following, dan rasionya
-   - Paragraf 4: Total tweet dan frekuensi nge-tweet
-   - Paragraf 5: Lokasi, tanggal join, dan verified status
-   - Paragraf 6: Penutup sarkas tapi ada sedikit encouragement lucu
+3. Tulis MAKSIMAL 2-3 paragraf yang padat dan lucu (tiap paragraf 3-4 kalimat max):
+    - Paragraf 1: Username, nama, dan frekuensi nge-tweet
+    - Paragraf 2: Angka followers, rasionya, dan bio
+    - Paragraf 3: Penutup sarkas tapi ada sedikit encouragement lucu
 4. JANGAN singgung agama, ras, suku, atau isu SARA — roast soal aktivitas X-nya aja
 5. Tone: kayak temen yang lagi bully temen sendiri tapi sayang — bukan hate speech 😂
-6. WAJIB selesaikan semua 6 paragraf, jangan dipotong di tengah.
+6. WAJIB selesaikan 2-3 paragraf tersebut, jangan dipotong di tengah.
 
 PENTING: Output HANYA teks roasting langsung tanpa intro/outro/disclaimer apapun. JANGAN berhenti di tengah kalimat.`;
 }
@@ -117,7 +114,7 @@ async function callGemini(apiKey: string, model: string, prompt: string): Promis
         { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
         { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" },
       ],
-      generationConfig: { temperature: 1.0, maxOutputTokens: 8192 },
+      generationConfig: { temperature: 1.0, maxOutputTokens: 1024 },
     }),
   });
 
