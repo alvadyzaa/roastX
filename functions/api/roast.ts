@@ -163,7 +163,7 @@ async function callGroq(apiKey: string, model: string, prompt: string): Promise<
       model: model,
       messages: [{ role: "user", content: prompt }],
       temperature: 1.0,
-      max_tokens: 1024,
+      max_tokens: 2048,
     }),
   });
 
@@ -176,7 +176,9 @@ async function callGroq(apiKey: string, model: string, prompt: string): Promise<
     throw err;
   }
 
-  const text = data.choices?.[0]?.message?.content;
+  const choice = data.choices?.[0];
+  if (choice?.finish_reason === "length") return null; // Truncated mid-sentence, treat as failure
+  const text = choice?.message?.content;
   return text?.trim() || null;
 }
 
