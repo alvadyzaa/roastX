@@ -117,7 +117,7 @@ async function callGemini(apiKey: string, model: string, prompt: string): Promis
         { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
         { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" },
       ],
-      generationConfig: { temperature: 1.0, maxOutputTokens: 2048 },
+      generationConfig: { temperature: 1.0, maxOutputTokens: 8192 },
     }),
   });
 
@@ -136,8 +136,8 @@ async function callGemini(apiKey: string, model: string, prompt: string): Promis
 
   const candidate = data.candidates?.[0];
   const finishReason = candidate?.finishReason;
-  // If truncated mid-output, treat as failure so we can retry with next key
-  if (finishReason === "MAX_TOKENS" || finishReason === "SAFETY") {
+  // If safety blocked, treat as error. But if MAX_TOKENS, allow returning what we have.
+  if (finishReason === "SAFETY") {
       throw new Error(`TRUNCATED_OR_UNSAFE_${finishReason}`);
   }
   const text = candidate?.content?.parts?.[0]?.text;
