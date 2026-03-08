@@ -20,6 +20,7 @@ const XIcon = ({ size = "1em", className = "", style = {} }) => (
 interface RoastResult {
   profile: XProfile;
   roast: string;
+  model?: string;
 }
 
 interface ToastState {
@@ -99,7 +100,7 @@ export default function Home() {
         return;
       }
 
-      setResult({ profile: data.profile, roast: data.roast });
+      setResult({ profile: data.profile, roast: data.roast, model: data.model });
 
       // Scroll to result
       setTimeout(() => {
@@ -251,6 +252,7 @@ export default function Home() {
               <RoastCard
                 roast={result.roast}
                 username={result.profile.username}
+                model={result.model}
                 onCopy={() => showToast("Roasting berhasil di-copy! 🔥")}
               />
 

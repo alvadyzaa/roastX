@@ -7,10 +7,11 @@ import { Copy, Share2, Check, Flame } from "lucide-react";
 interface RoastCardProps {
   roast: string;
   username: string;
+  model?: string;
   onCopy: () => void;
 }
 
-export default function RoastCard({ roast, username, onCopy }: RoastCardProps) {
+export default function RoastCard({ roast, username, model, onCopy }: RoastCardProps) {
   const [displayedText, setDisplayedText] = useState("");
   const [isTyping, setIsTyping] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -59,16 +60,23 @@ export default function RoastCard({ roast, username, onCopy }: RoastCardProps) {
     >
       {/* Card header */}
       <div className="roast-header">
-        <div className="roast-badge">
-          <span className="animate-flame inline-flex align-bottom">
-            <Flame size={14} />
-          </span>
-          <span>AI Roasting untuk @{username}</span>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+          <div className="roast-badge">
+            <span className="animate-flame inline-flex align-bottom">
+              <Flame size={14} />
+            </span>
+            <span>AI Roasting untuk @{username}</span>
+          </div>
+          {model && (
+            <div className="roast-badge" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", fontSize: "0.75rem", padding: "2px 8px", color: "rgba(255,255,255,0.6)" }}>
+              <span>🤖 {model}</span>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Roast text */}
-      <div className="roast-text">
+      <div className="roast-text" style={{ whiteSpace: "pre-wrap" }}>
         {displayedText.split('*').map((part, i) => 
           i % 2 === 1 ? <strong key={i} className="font-bold">{part}</strong> : <span key={i}>{part}</span>
         )}
