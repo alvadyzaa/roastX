@@ -151,7 +151,7 @@ export const onRequestPost = async (context: EventContext<Env, any, any>) => {
     // Creating a dummy Request so we can use Cache API which only accepts HTTP Requests as keys
     const cacheUrl = new URL(req.url);
     // Bust cache prefix slightly so it ignores all previous cached responses
-    cacheUrl.pathname = `/roast-cache-v2/${username.toLowerCase()}`;
+    cacheUrl.pathname = `/roast-cache-v3/${username.toLowerCase()}`;
     const cacheKey = new Request(cacheUrl.toString(), { method: "GET" });
     const cache = (caches as any).default;
     
