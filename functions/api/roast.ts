@@ -142,7 +142,8 @@ export const onRequestPost = async (context: EventContext<Env, any, any>) => {
     // ── CACHE CHECK (Cloudflare Cache API) ──────────────────────────────────
     // Creating a dummy Request so we can use Cache API which only accepts HTTP Requests as keys
     const cacheUrl = new URL(req.url);
-    cacheUrl.pathname = `/roast-cache/${username.toLowerCase()}`;
+    // Bust cache prefix slightly so it ignores all previous cached responses
+    cacheUrl.pathname = `/roast-cache-v2/${username.toLowerCase()}`;
     const cacheKey = new Request(cacheUrl.toString(), { method: "GET" });
     const cache = (caches as any).default;
     
