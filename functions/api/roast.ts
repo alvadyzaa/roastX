@@ -9,6 +9,7 @@ export interface Env {
   GROQ_API_KEY_1?: string;
   GROQ_API_KEY_2?: string;
   GROQ_API_KEY_3?: string;
+  GROQ_API_KEY_4?: string;
 }
 
 // Models ordered by quality — fallback down the list on quota
@@ -107,7 +108,7 @@ Langsung tulis roastingnya. Akhiri kalimat terakhir dengan tanda baca.`;
 }
 
 // ── Call Gemini REST API ─────────────────────────────────────────────────────
-async function callGemini(apiKey: string, model: string, prompt: string, maxTokens = 500): Promise<string | null> {
+async function callGemini(apiKey: string, model: string, prompt: string, maxTokens = 900): Promise<string | null> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   const res = await fetch(url, {
     method: "POST",
@@ -154,7 +155,7 @@ async function callGroq(apiKey: string, model: string, prompt: string): Promise<
       model,
       messages: [{ role: "user", content: prompt }],
       temperature: 1.0,
-      max_tokens: 500,
+      max_tokens: 900,
     }),
   });
 
@@ -191,7 +192,7 @@ export const onRequestPost = async (context: EventContext<Env, any, any>) => {
     for (const k of [context.env.GEMINI_API_KEY_1, context.env.GEMINI_API_KEY_2, context.env.GEMINI_API_KEY_3, context.env.GEMINI_API_KEY_4, context.env.GEMINI_API_KEY_5]) {
       if (k && k.trim() && !k.includes("...")) GEMINI_KEYS.push(k.trim());
     }
-    for (const k of [context.env.GROQ_API_KEY_1, context.env.GROQ_API_KEY_2, context.env.GROQ_API_KEY_3]) {
+    for (const k of [context.env.GROQ_API_KEY_1, context.env.GROQ_API_KEY_2, context.env.GROQ_API_KEY_3, context.env.GROQ_API_KEY_4]) {
       if (k && k.trim()) GROQ_KEYS.push(k.trim());
     }
 
