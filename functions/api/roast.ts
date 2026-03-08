@@ -10,9 +10,6 @@ export interface Env {
 
 const GEMINI_MODELS = [
   "gemini-2.5-flash",
-  "gemini-2.0-flash",
-  "gemini-2.0-flash-lite",
-  "gemini-1.5-flash",
 ];
 
 
@@ -127,6 +124,10 @@ async function callGemini(apiKey: string, model: string, prompt: string): Promis
   const data = await res.json() as any;
 
   if (!res.ok) {
+    // Determine if it was a safety block
+    if (data.error?.message?.includes("finishReason: SAFETY")) {
+        throw new Error("BLOCKED_BY_SAFETY");
+    }
     const errorMsg = data.error?.message || `HTTP ${res.status}`;
     const err = new Error(errorMsg) as any;
     err.status = res.status;
@@ -136,7 +137,9 @@ async function callGemini(apiKey: string, model: string, prompt: string): Promis
   const candidate = data.candidates?.[0];
   const finishReason = candidate?.finishReason;
   // If truncated mid-output, treat as failure so we can retry with next key
-  if (finishReason === "MAX_TOKENS") return null;
+  if (finishReason === "MAX_TOKENS" || finishReason === "SAFETY") {
+      throw new Error(`TRUNCATED_OR_UNSAFE_${finishReason}`);
+  }
   const text = candidate?.content?.parts?.[0]?.text;
   return text?.trim() || null;
 }
@@ -204,9 +207,18 @@ export const onRequestPost = async (context: EventContext<Env, any, any>) => {
           }
         } catch (err) {
           const e = err as any;
-          const isQuota = e.status === 429 || (e.message || "").includes("RESOURCE_EXHAUSTED");
-          errors.push(`Gemini(...${key.slice(-6)}/${model}): ${isQuota ? "QUOTA" : String(e.message).substring(0, 50)}`);
-          if (!isQuota && e.status !== 503) break; // skip to next key if not quota/overload
+          const msg = e.message || String(e);
+          const isQuota = e.status === 429 || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("quota");
+          
+          if (msg.includes("SAFETY")) {
+             errors.push(`Gemini(...${key.slice(-6)}/${model}): SAFETY_BLOCK`);
+             // Safety block usually means the prompt itself was rejected, trying another key won't help much, 
+             // but we continue anyway just in case it's a model specific safety filter issue.
+          } else {
+             errors.push(`Gemini(...${key.slice(-6)}/${model}): ${isQuota ? "QUOTA" : msg.substring(0, 50)}`);
+          }
+          
+          if (!isQuota && e.status !== 503 && !msg.includes("SAFETY")) break; // skip to next key if not quota/overload/safety
         }
       }
     }
