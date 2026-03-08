@@ -253,7 +253,7 @@ export const onRequestPost = async (context: EventContext<Env, any, any>) => {
         try {
           const text = await callGemini(key, model, prompt);
           if (text) {
-            return Response.json({ profile, roast: text, generatedAt: new Date().toISOString() });
+            return Response.json({ profile, roast: text, generatedAt: new Date().toISOString(), model });
           }
         } catch (err) {
           const e = err as any;
@@ -271,7 +271,7 @@ export const onRequestPost = async (context: EventContext<Env, any, any>) => {
           try {
             const text = await callGroq(key, model, prompt);
             if (text) {
-              return Response.json({ profile, roast: text, generatedAt: new Date().toISOString() });
+              return Response.json({ profile, roast: text, generatedAt: new Date().toISOString(), model });
             }
           } catch (err) {
             const e = err as any;
