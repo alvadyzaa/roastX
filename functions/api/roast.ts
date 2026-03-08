@@ -69,7 +69,8 @@ async function fetchProfile(username: string) {
 // ── Build prompt ─────────────────────────────────────────────────────────────
 function buildPrompt(p: Awaited<ReturnType<typeof fetchProfile>> & object) {
   const hasRatio = p!.followers !== "0" && p!.following !== "0";
-  return `Roast profil Twitter/X ini sepedas mungkin pakai bahasa gaul Gen-Z (Indonesia). SPESIFIK ke datanya. Buat TEPAT 2 paragraf dengan panjang sedang (jangan terlalu singkat spt 1 kalimat, targetkan 3-4 kalimat per paragraf). JANGAN bahas SARA/agama.
+  return `Roast profil Twitter/X ini sepedas mungkin pakai bahasa gaul Gen-Z (Indonesia). SPESIFIK ke datanya.
+WAJIB TEPAT 2 paragraf. Panjang sedang, pastikan roasting LENGKAP, NGENA, dan TIDAK BOLEH TERPOTONG di tengah kalimat akhir. HARUS selesai sampai tanda titik. JANGAN bahas SARA/agama.
 DATA:
 - Nama: ${p!.name} | Username: @${p!.username}
 - Bio: ${p!.bio || "grup wa keluarga aja males invite dia"}
@@ -94,7 +95,7 @@ async function callGemini(apiKey: string, model: string, prompt: string): Promis
         { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
         { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" },
       ],
-      generationConfig: { temperature: 1.0, maxOutputTokens: 1024 },
+      generationConfig: { temperature: 1.0, maxOutputTokens: 2048 },
     }),
   });
 
