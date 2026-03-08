@@ -53,8 +53,13 @@ async function fetchProfile(username: string) {
       let pic = (d.profile_image_url as string) || "";
       if (pic.includes("_normal.")) pic = pic.replace("_normal.", "_400x400.");
 
-      // For accounts with Twitter Blue/Verified, usually present in d.verified or d.is_blue_verified
-      const isVerified = Boolean(d.verified) || Boolean(d.is_blue_verified) || ((d.followers_count as number) > 10000);
+      // Verified: check all known fields from vxtwitter/fxtwitter API
+      const isVerified = 
+        Boolean(d.is_blue_verified) ||
+        Boolean(d.verified) ||
+        d.verified_type === "Business" ||
+        d.verified_type === "Government" ||
+        typeof d.verified_type === "string" && d.verified_type.length > 0;
 
       return {
         name: d.name as string,
@@ -75,22 +80,25 @@ async function fetchProfile(username: string) {
 }
 
 // ── Build prompt ─────────────────────────────────────────────────────────────
-function buildPrompt(p: Awaited<ReturnType<typeof fetchProfile>> & object) {
+function buildPrompt(p: Awaited<ReturnType<typeof fetchProfile>> & object, short = false) {
   const hasRatio = p!.followers !== "0" && p!.following !== "0";
-  return `Roast profil Twitter/X ini sepedas mungkin pakai bahasa gaul Gen-Z (Indonesia). SPESIFIK ke datanya.
-WAJIB TEPAT 2 paragraf. Panjang sedang, pastikan roasting LENGKAP, NGENA, dan TIDAK BOLEH TERPOTONG di tengah kalimat akhir. HARUS selesai sampai tanda titik. JANGAN bahas SARA/agama.
+  if (short) {
+    return `Roast @${p!.username} (${p!.name}) pakai bahasa gaul Gen-Z Indonesia, sepedas mungkin. Bio: "${p!.bio || "kosong"}". Followers ${p!.followers}, Following ${p!.following}, ${p!.tweetCount} tweet, join ${p!.joinedDate}. Tulis TEPAT 2 paragraf pendek (3 kalimat per paragraf). Selesaikan sampai titik terakhir. Jangan SARA.`;
+  }
+  return `Roast profil Twitter/X ini pakai bahasa gaul Gen-Z Indonesia, sepedas dan setajam mungkin. Fokus SPESIFIK ke data di bawah.
+Tulis TEPAT 2 paragraf. Tiap paragraf 3-4 kalimat pendek. WAJIB selesai sampai tanda titik/seru terakhir — JANGAN terpotong. Jangan bahas SARA/agama.
 DATA:
-- Nama: ${p!.name} | Username: @${p!.username}
-- Bio: ${p!.bio || "grup wa keluarga aja males invite dia"}
-- Followers: ${p!.followers || "0"} | Following: ${p!.following || "0"}
-- Tweet: ${p!.tweetCount || "0"} | Join: ${p!.joinedDate || "?"} | Verified: ${p!.verified ? "Ya" : "Enggak"}
-${hasRatio ? `- Rasio F/F: ${p!.followers}/${p!.following}` : ""}
+- Nama: ${p!.name} | @${p!.username}
+- Bio: "${p!.bio || "grup wa keluarga aja males invite dia"}"
+- Followers: ${p!.followers} | Following: ${p!.following} | Tweet: ${p!.tweetCount}
+- Join: ${p!.joinedDate || "?"} | Verified: ${p!.verified ? "Ya (Twitter Blue/Centang Biru)" : "Tidak"}
+${hasRatio ? `- Rasio followers/following: ${p!.followers}/${p!.following}` : ""}
 
-Tulis langsung roastingnya tanpa intro/outro.`;
+Langsung tulis roastingnya. Akhiri kalimat terakhir dengan tanda baca.`;
 }
 
 // ── Call Gemini REST API ─────────────────────────────────────────────────────
-async function callGemini(apiKey: string, model: string, prompt: string): Promise<string | null> {
+async function callGemini(apiKey: string, model: string, prompt: string, maxTokens = 500): Promise<string | null> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   const res = await fetch(url, {
     method: "POST",
@@ -103,7 +111,7 @@ async function callGemini(apiKey: string, model: string, prompt: string): Promis
         { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
         { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" },
       ],
-      generationConfig: { temperature: 1.0, maxOutputTokens: 2048 },
+      generationConfig: { temperature: 1.0, maxOutputTokens: maxTokens },
     }),
   });
 
@@ -122,9 +130,11 @@ async function callGemini(apiKey: string, model: string, prompt: string): Promis
 
   const candidate = data.candidates?.[0];
   const finishReason = candidate?.finishReason;
-  // If safety blocked, treat as error. But if MAX_TOKENS, allow returning what we have.
   if (finishReason === "SAFETY") {
-      throw new Error(`TRUNCATED_OR_UNSAFE_${finishReason}`);
+    throw new Error(`TRUNCATED_OR_UNSAFE_${finishReason}`);
+  }
+  if (finishReason === "MAX_TOKENS") {
+    throw new Error("MAX_TOKENS");
   }
   const text = candidate?.content?.parts?.[0]?.text;
   return text?.trim() || null;
@@ -147,22 +157,9 @@ export const onRequestPost = async (context: EventContext<Env, any, any>) => {
       return Response.json({ error: "MISSING_USERNAME", message: "Username wajib diisi." }, { status: 400 });
     }
 
-    // ── CACHE CHECK (Cloudflare Cache API) ──────────────────────────────────
-    // Creating a dummy Request so we can use Cache API which only accepts HTTP Requests as keys
-    const cacheUrl = new URL(req.url);
-    // Bust cache prefix slightly so it ignores all previous cached responses
-    cacheUrl.pathname = `/roast-cache-v3/${username.toLowerCase()}`;
-    const cacheKey = new Request(cacheUrl.toString(), { method: "GET" });
-    const cache = (caches as any).default;
-    
-    try {
-      const cachedResponse = await cache.match(cacheKey);
-      if (cachedResponse) {
-        return cachedResponse; // Return heavily optimized cached result immediately!
-      }
-    } catch (e) {
-      // ignore cache errors just fall through
-    }
+    // ── CACHE DISABLED ──────────────────────────────────────────────────────
+    // Cache removed: always generate fresh roast to avoid serving stale/truncated results
+    // const cache = (caches as any).default;
 
     // Load available API keys (MUST BE STATIC IN EDGE RUNTIME)
     const GEMINI_KEYS: string[] = [];
@@ -197,40 +194,40 @@ export const onRequestPost = async (context: EventContext<Env, any, any>) => {
     }
 
     const prompt = buildPrompt(profile);
+    const promptShort = buildPrompt(profile, true);
     const errors: string[] = [];
 
-    // 1. Try Gemini Models first
+    // Try Gemini — first with full prompt, then with shorter prompt if MAX_TOKENS
     for (const key of GEMINI_KEYS) {
       for (const model of GEMINI_MODELS) {
+        // Attempt 1: full prompt
         try {
           const text = await callGemini(key, model, prompt);
           if (text) {
-            const finalResponse = Response.json({ profile, roast: text, generatedAt: new Date().toISOString(), model });
-            
-            // Save to Cache for 24 hours (86400 seconds)
-            try {
-              const resToCache = new Response(finalResponse.clone().body, finalResponse);
-              resToCache.headers.set("Cache-Control", "public, max-age=86400");
-              context.waitUntil(cache.put(cacheKey, resToCache));
-            } catch (ce) {
-               // Ignore cache write errors
-            }
-            
-            return finalResponse;
+            return Response.json({ profile, roast: text, generatedAt: new Date().toISOString(), model });
           }
         } catch (err) {
           const e = err as any;
           const msg = e.message || String(e);
-          const isQuota = e.status === 429; // Only strict 429 is a quota issue
-          
-          if (msg.includes("SAFETY")) {
-             errors.push(`Gemini(${model}): SAFETY_BLOCK`);
+          const isQuota = e.status === 429;
+
+          if (msg === "MAX_TOKENS") {
+            // Attempt 2: shorter prompt with lower token budget
+            try {
+              const shortText = await callGemini(key, model, promptShort, 350);
+              if (shortText) {
+                return Response.json({ profile, roast: shortText, generatedAt: new Date().toISOString(), model });
+              }
+            } catch (err2) {
+              errors.push(`Gemini(${model}) short: ${String(err2).substring(0, 80)}`);
+            }
+          } else if (msg.includes("SAFETY")) {
+            errors.push(`Gemini(${model}): SAFETY_BLOCK`);
           } else {
-             // Log the EXACT error from Gemini so we know WHY it failed
-             errors.push(`Gemini(${model}) HTTP ${e.status || 'unknown'}: ${msg.substring(0, 100)}`);
+            errors.push(`Gemini(${model}) HTTP ${e.status || 'unknown'}: ${msg.substring(0, 100)}`);
           }
-          
-          if (!isQuota && e.status !== 503 && !msg.includes("SAFETY")) break; // skip to next key if not quota/overload/safety
+
+          if (!isQuota && e.status !== 503 && !msg.includes("SAFETY")) break;
         }
       }
     }

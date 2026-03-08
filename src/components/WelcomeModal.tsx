@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Sparkles, Info } from "lucide-react";
+import { X, Sparkles, Info, AlertTriangle } from "lucide-react";
 
 interface WelcomeModalProps {
   isOpen: boolean;
@@ -83,6 +83,19 @@ export default function WelcomeModal({ isOpen, onClose }: WelcomeModalProps) {
                   <p className="welcome-info-desc">
                     Kalau tiba-tiba gabisa, berarti limitnya udah habis hari ini.{" "}
                     <span className="welcome-bold">Coba lagi besok ya! 😴</span>
+                  </p>
+                </div>
+              </div>
+              <div className="welcome-divider" />
+              <div className="welcome-info-row">
+                <div className="welcome-info-icon-wrap warning">
+                  <AlertTriangle size={12} className="text-yellow-400" />
+                </div>
+                <div>
+                  <p className="welcome-info-label">Masih Beta 🚧</p>
+                  <p className="welcome-info-desc">
+                    App ini masih dalam tahap beta. Mungkin ada error atau bug yang muncul.{" "}
+                    <span className="welcome-bold">Mohon dimaklumi ya!</span>
                   </p>
                 </div>
               </div>

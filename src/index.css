@@ -236,7 +236,9 @@ h3 {
   width: 100%;
   max-width: 420px;
   position: relative;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  box-shadow:
+    0 24px 48px rgba(0, 0, 0, 0.8),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
 .modal-close {
@@ -284,7 +286,6 @@ h3 {
   flex-direction: column;
   gap: 12px;
 }
-
 
 /* ============================================
    HERO SECTION
@@ -750,8 +751,14 @@ h3 {
 }
 
 @keyframes flame-glow {
-  0% { opacity: 0.7; filter: drop-shadow(0 0 5px var(--accent)); }
-  100% { opacity: 1; filter: drop-shadow(0 0 15px var(--accent-2)); }
+  0% {
+    opacity: 0.7;
+    filter: drop-shadow(0 0 5px var(--accent));
+  }
+  100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 15px var(--accent-2));
+  }
 }
 
 .loading-text {
@@ -819,7 +826,11 @@ h3 {
   height: 44px;
   flex-shrink: 0;
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(255, 87, 34, 0.18), rgba(255, 152, 0, 0.12));
+  background: linear-gradient(
+    135deg,
+    rgba(255, 87, 34, 0.18),
+    rgba(255, 152, 0, 0.12)
+  );
   border: 1px solid rgba(255, 87, 34, 0.25);
   display: flex;
   align-items: center;
@@ -945,7 +956,10 @@ h3 {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s;
 }
 
 .welcome-checkbox-box.checked {
@@ -965,7 +979,10 @@ h3 {
   border: none;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+  transition:
+    opacity 0.2s,
+    transform 0.15s,
+    box-shadow 0.2s;
   box-shadow: 0 4px 16px rgba(255, 87, 34, 0.3);
   letter-spacing: -0.01em;
 }
@@ -979,7 +996,6 @@ h3 {
 .welcome-cta-btn:active {
   transform: translateY(0);
 }
-
 
 /* ============================================
    FOOTER
