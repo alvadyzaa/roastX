@@ -6,11 +6,6 @@ export interface Env {
   GEMINI_API_KEY_3?: string;
   GEMINI_API_KEY_4?: string;
   GEMINI_API_KEY_5?: string;
-  GROQ_API_KEY_1?: string;
-  GROQ_API_KEY_2?: string;
-  GROQ_API_KEY_3?: string;
-  GROQ_API_KEY_4?: string;
-  GROQ_API_KEY_5?: string;
 }
 
 const GEMINI_MODELS = [
@@ -20,11 +15,7 @@ const GEMINI_MODELS = [
   "gemini-1.5-flash",
 ];
 
-const GROQ_MODELS = [
-  "llama3-70b-8192",
-  "llama3-8b-8192",
-  "mixtral-8x7b-32768",
-];
+
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function formatCount(num: number): string {
@@ -150,38 +141,6 @@ async function callGemini(apiKey: string, model: string, prompt: string): Promis
   return text?.trim() || null;
 }
 
-// ── Call Groq REST API (Fallback) ────────────────────────────────────────────
-async function callGroq(apiKey: string, model: string, prompt: string): Promise<string | null> {
-  const url = "https://api.groq.com/openai/v1/chat/completions";
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { 
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: model,
-      messages: [{ role: "user", content: prompt }],
-      temperature: 1.0,
-      max_tokens: 2048,
-    }),
-  });
-
-  const data = await res.json() as any;
-
-  if (!res.ok) {
-    const errorMsg = data.error?.message || `HTTP ${res.status}`;
-    const err = new Error(`Groq: ${errorMsg}`) as any;
-    err.status = res.status;
-    throw err;
-  }
-
-  const choice = data.choices?.[0];
-  if (choice?.finish_reason === "length") return null; // Truncated mid-sentence, treat as failure
-  const text = choice?.message?.content;
-  return text?.trim() || null;
-}
-
 // ── Main handler ──────────────────────────────────────────────────────────────
 export const onRequestPost = async (context: EventContext<Env, any, any>) => {
   try {
@@ -202,7 +161,6 @@ export const onRequestPost = async (context: EventContext<Env, any, any>) => {
 
     // Load available API keys (MUST BE STATIC IN EDGE RUNTIME)
     const GEMINI_KEYS: string[] = [];
-    const GROQ_KEYS: string[] = [];
 
     const rawGemini = [
         context.env.GEMINI_API_KEY_1,
@@ -217,23 +175,10 @@ export const onRequestPost = async (context: EventContext<Env, any, any>) => {
         }
     }
 
-    const rawGroq = [
-        context.env.GROQ_API_KEY_1,
-        context.env.GROQ_API_KEY_2,
-        context.env.GROQ_API_KEY_3,
-        context.env.GROQ_API_KEY_4,
-        context.env.GROQ_API_KEY_5,
-    ];
-    for (const grKey of rawGroq) {
-        if (grKey && grKey.trim().length > 0) {
-            GROQ_KEYS.push(grKey.trim());
-        }
-    }
-
-    if (GEMINI_KEYS.length === 0 && GROQ_KEYS.length === 0) {
+    if (GEMINI_KEYS.length === 0) {
         return Response.json({ 
             error: "MISSING_CONFIG", 
-            message: "Sedang maintenace: Konfigurasi API Key (Gemini/Groq) belum diset di Cloudflare Pages." 
+            message: "Sedang maintenace: Konfigurasi API Key Gemini belum diset di Cloudflare Pages." 
         }, { status: 500 });
     }
 
@@ -266,29 +211,10 @@ export const onRequestPost = async (context: EventContext<Env, any, any>) => {
       }
     }
 
-    // 2. Fallback to Groq Models if Gemini failed
-    if (GROQ_KEYS.length > 0) {
-      for (const key of GROQ_KEYS) {
-        for (const model of GROQ_MODELS) {
-          try {
-            const text = await callGroq(key, model, prompt);
-            if (text) {
-              return Response.json({ profile, roast: text, generatedAt: new Date().toISOString(), model });
-            }
-          } catch (err) {
-            const e = err as any;
-            const isQuota = e.status === 429;
-            errors.push(`Groq(...${key.slice(-4)}/${model}): ${isQuota ? "QUOTA" : String(e.message).substring(0, 50)}`);
-             if (!isQuota && e.status !== 503) break;
-          }
-        }
-      }
-    }
-
     const allQuota = errors.length > 0 && errors.every(e => e.includes("QUOTA"));
     if (allQuota) {
       return Response.json(
-        { error: "QUOTA_EXCEEDED", message: "AI lagi overload nih 😅 Semua API key (Gemini & Groq) rate limit. Coba lagi nanti ya!" },
+        { error: "QUOTA_EXCEEDED", message: "AI lagi overload nih 😅 Semua API key Gemini kena rate limit. Coba lagi nanti ya!" },
         { status: 429 }
       );
     }
