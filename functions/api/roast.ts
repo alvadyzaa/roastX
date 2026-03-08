@@ -84,7 +84,7 @@ function buildPrompt(p: Awaited<ReturnType<typeof fetchProfile>> & object) {
   return `Kamu adalah komika stand-up paling savage di Indonesia yang khusus nge-roast profil Twitter/X orang.
 
 TUGAS:
-Buat roasting PEDAS, SARKASTIK, dan LUCU banget (gaya anak muda Jakarta/Gen-Z, pakai bahasa gaul Indonesia) untuk profil Twitter/X berikut ini.
+Buat roasting PEDAS, SARKASTIK, DETAIL, dan SUPER LUCU (gaya anak muda Jakarta/Gen-Z, pakai bahasa gaul Indonesia) untuk profil Twitter/X berikut ini.
 
 DATA PROFIL:
 - Nama: ${p!.name}
@@ -100,13 +100,19 @@ ${hasRatio ? `- Rasio: ${p!.followers} followers vs ${p!.following} following` :
 
 ATURAN ROASTING:
 1. Gunakan bahasa gaul Gen-Z kekinian: "literally", "bro", "anjir", "gila sih", "kok bisa", "auto", "frfr", "no cap", "gaskeun", dll
-2. Roast SPESIFIK berdasarkan data yang ada — jangan generik
-3. 3-4 paragraf pendek, tiap paragraf fokus pada satu aspek
+2. Roast SPESIFIK dan DALAM berdasarkan setiap data yang ada — jangan generik, gali lebih dalam
+3. Tulis 5-6 paragraf yang padat dan panjang (minimal 3-4 kalimat per paragraf), tiap paragraf fokus pada satu aspek berbeda:
+   - Paragraf 1: Username dan nama
+   - Paragraf 2: Bio (atau ketiadaan bio)
+   - Paragraf 3: Angka followers, following, dan rasionya
+   - Paragraf 4: Total tweet dan frekuensi nge-tweet
+   - Paragraf 5: Lokasi, tanggal join, dan verified status
+   - Paragraf 6: Penutup sarkas tapi ada sedikit encouragement lucu
 4. JANGAN singgung agama, ras, suku, atau isu SARA — roast soal aktivitas X-nya aja
-5. Akhiri dengan kalimat penutup yang menghibur tapi ada sedikit encouragement lucu
-6. Tone: kayak temen yang lagi bully temen sendiri — bukan hate speech 😂
+5. Tone: kayak temen yang lagi bully temen sendiri tapi sayang — bukan hate speech 😂
+6. WAJIB selesaikan semua 6 paragraf, jangan dipotong di tengah.
 
-PENTING: Output HANYA teks roasting langsung tanpa intro/outro/disclaimer apapun.`;
+PENTING: Output HANYA teks roasting langsung tanpa intro/outro/disclaimer apapun. JANGAN berhenti di tengah kalimat.`;
 }
 
 // ── Call Gemini REST API ─────────────────────────────────────────────────────
@@ -118,12 +124,12 @@ async function callGemini(apiKey: string, model: string, prompt: string): Promis
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
       safetySettings: [
-        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
+        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
         { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" },
       ],
-      generationConfig: { temperature: 1.0, maxOutputTokens: 1024 },
+      generationConfig: { temperature: 1.0, maxOutputTokens: 2048 },
     }),
   });
 
@@ -136,7 +142,11 @@ async function callGemini(apiKey: string, model: string, prompt: string): Promis
     throw err;
   }
 
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  const candidate = data.candidates?.[0];
+  const finishReason = candidate?.finishReason;
+  // If truncated mid-output, treat as failure so we can retry with next key
+  if (finishReason === "MAX_TOKENS") return null;
+  const text = candidate?.content?.parts?.[0]?.text;
   return text?.trim() || null;
 }
 
