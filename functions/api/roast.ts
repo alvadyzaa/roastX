@@ -41,12 +41,20 @@ async function fetchProfile(username: string) {
 
       let joinedDate = "";
       if (d.created_at) {
-        // Warning: Avoid doing heavy Intl/Date formatting as V8 Edge runtime might not have ICU data
-        joinedDate = String(d.created_at).substring(0, 15);
+        try {
+          const dt = new Date(d.created_at as string);
+          const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+          joinedDate = `${months[dt.getMonth()]} ${dt.getFullYear()}`;
+        } catch {
+          joinedDate = String(d.created_at).substring(0, 10);
+        }
       }
 
       let pic = (d.profile_image_url as string) || "";
       if (pic.includes("_normal.")) pic = pic.replace("_normal.", "_400x400.");
+
+      // For accounts with Twitter Blue/Verified, usually present in d.verified or d.is_blue_verified
+      const isVerified = Boolean(d.verified) || Boolean(d.is_blue_verified) || ((d.followers_count as number) > 10000);
 
       return {
         name: d.name as string,
@@ -57,7 +65,7 @@ async function fetchProfile(username: string) {
         tweetCount: formatCount((d.tweet_count as number) || 0),
         joinedDate,
         profilePicture: pic,
-        verified: Boolean(d.verified) || ((d.followers_count as number) > 10000),
+        verified: isVerified,
         pinnedTweet: "",
         location: (d.location as string) || "",
       };
