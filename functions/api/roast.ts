@@ -148,12 +148,11 @@ async function callGemini(apiKey: string, model: string, prompt: string): Promis
 export const onRequestPost = async (context: EventContext<Env, any, any>) => {
   try {
     const req = context.request;
-    const bodyText = await req.text();
     let body;
     try {
-      body = JSON.parse(bodyText);
-    } catch (parseErr) {
-      return Response.json({ error: "BAD_REQUEST", message: "Invalid JSON body" }, { status: 400 });
+      body = (await req.clone().json()) as any;
+    } catch (parseErr: any) {
+      return Response.json({ error: "BAD_REQUEST", message: "Invalid JSON body: " + parseErr.message }, { status: 400 });
     }
 
     const username = String(body.username || "").replace(/^@/, "").trim();
@@ -208,14 +207,13 @@ export const onRequestPost = async (context: EventContext<Env, any, any>) => {
         } catch (err) {
           const e = err as any;
           const msg = e.message || String(e);
-          const isQuota = e.status === 429 || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("quota");
+          const isQuota = e.status === 429; // Only strict 429 is a quota issue
           
           if (msg.includes("SAFETY")) {
-             errors.push(`Gemini(...${key.slice(-6)}/${model}): SAFETY_BLOCK`);
-             // Safety block usually means the prompt itself was rejected, trying another key won't help much, 
-             // but we continue anyway just in case it's a model specific safety filter issue.
+             errors.push(`Gemini(${model}): SAFETY_BLOCK`);
           } else {
-             errors.push(`Gemini(...${key.slice(-6)}/${model}): ${isQuota ? "QUOTA" : msg.substring(0, 50)}`);
+             // Log the EXACT error from Gemini so we know WHY it failed
+             errors.push(`Gemini(${model}) HTTP ${e.status || 'unknown'}: ${msg.substring(0, 100)}`);
           }
           
           if (!isQuota && e.status !== 503 && !msg.includes("SAFETY")) break; // skip to next key if not quota/overload/safety
@@ -223,10 +221,10 @@ export const onRequestPost = async (context: EventContext<Env, any, any>) => {
       }
     }
 
-    const allQuota = errors.length > 0 && errors.every(e => e.includes("QUOTA"));
+    const allQuota = errors.length > 0 && errors.every(e => e.includes("HTTP 429"));
     if (allQuota) {
       return Response.json(
-        { error: "QUOTA_EXCEEDED", message: "AI lagi overload nih 😅 Semua API key Gemini kena rate limit. Coba lagi nanti ya!" },
+        { error: "QUOTA_EXCEEDED", message: "AI lagi overload nih 😅 Semua API key Gemini kena rate limit (HTTP 429). Coba lagi nanti ya!" },
         { status: 429 }
       );
     }
