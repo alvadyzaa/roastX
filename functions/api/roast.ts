@@ -196,11 +196,12 @@ export const onRequestPost = async (context: EventContext<Env, any, any>) => {
     const prompt = buildPrompt(profile);
     const promptShort = buildPrompt(profile, true);
     const errors: string[] = [];
+    let anyKeyLeaked = false;
 
-    // Try Gemini — first with full prompt, then with shorter prompt if MAX_TOKENS
+    // Try Gemini — first with full prompt, then shorter if MAX_TOKENS
+    outer:
     for (const key of GEMINI_KEYS) {
       for (const model of GEMINI_MODELS) {
-        // Attempt 1: full prompt
         try {
           const text = await callGemini(key, model, prompt);
           if (text) {
@@ -209,40 +210,66 @@ export const onRequestPost = async (context: EventContext<Env, any, any>) => {
         } catch (err) {
           const e = err as any;
           const msg = e.message || String(e);
-          const isQuota = e.status === 429;
+          const status = e.status as number;
 
+          // 403 = leaked/disabled key — skip all models for this key
+          if (status === 403) {
+            anyKeyLeaked = true;
+            errors.push(`Key ...${key.slice(-6)}: LEAKED_OR_DISABLED (403)`);
+            continue outer; // skip remaining models for this key
+          }
+
+          // 429 = quota — try next key
+          if (status === 429) {
+            errors.push(`Key ...${key.slice(-6)}/${model}: QUOTA_429`);
+            continue outer;
+          }
+
+          // MAX_TOKENS — retry with shorter prompt
           if (msg === "MAX_TOKENS") {
-            // Attempt 2: shorter prompt with lower token budget
             try {
               const shortText = await callGemini(key, model, promptShort, 350);
               if (shortText) {
                 return Response.json({ profile, roast: shortText, generatedAt: new Date().toISOString(), model });
               }
-            } catch (err2) {
-              errors.push(`Gemini(${model}) short: ${String(err2).substring(0, 80)}`);
+            } catch {
+              // short also failed, try next model
             }
-          } else if (msg.includes("SAFETY")) {
-            errors.push(`Gemini(${model}): SAFETY_BLOCK`);
-          } else {
-            errors.push(`Gemini(${model}) HTTP ${e.status || 'unknown'}: ${msg.substring(0, 100)}`);
+            continue;
           }
 
-          if (!isQuota && e.status !== 503 && !msg.includes("SAFETY")) break;
+          // SAFETY block — try next model
+          if (msg.includes("SAFETY")) {
+            errors.push(`${model}: SAFETY_BLOCK`);
+            continue;
+          }
+
+          // Other error — log and break to next key
+          errors.push(`Key ...${key.slice(-6)}/${model} HTTP ${status || 'unknown'}: ${msg.substring(0, 100)}`);
+          continue outer;
         }
       }
     }
 
-    const allQuota = errors.length > 0 && errors.every(e => e.includes("HTTP 429"));
+    // Determine error type for response
+    const allQuota = errors.length > 0 && errors.every(e => e.includes("QUOTA_429"));
     if (allQuota) {
       return Response.json(
-        { error: "QUOTA_EXCEEDED", message: "AI lagi overload nih 😅 Semua API key Gemini kena rate limit (HTTP 429). Coba lagi nanti ya!" },
+        { error: "QUOTA_EXCEEDED", message: "Kuota harian AI habis 😴 Semua API key kena rate limit (429). Coba lagi besok ya!" },
         { status: 429 }
+      );
+    }
+
+    if (anyKeyLeaked && errors.length > 0 && errors.every(e => e.includes("LEAKED"))) {
+      return Response.json(
+        { error: "CONFIG_ERROR", message: "Sedang maintenance: API key bermasalah (revoked/leaked). Admin sudah diberitahu." },
+        { status: 503 }
       );
     }
 
     return Response.json({ 
       error: "AI_FAILED", 
-      message: `AI gagal generate roasting:\n${errors.join("\n")}` 
+      message: `AI gagal generate roasting. Detail: ${errors.join("; ")}` 
     }, { status: 500 });
 
   } catch (err: any) {
