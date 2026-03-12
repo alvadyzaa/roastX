@@ -28,6 +28,12 @@ interface ToastState {
   type: "success" | "error";
 }
 
+function notifyAdsInteraction() {
+  if (typeof window === "undefined") return;
+  const callback = (window as typeof window & { onUserSearchPerformed?: () => void }).onUserSearchPerformed;
+  if (typeof callback === "function") callback();
+}
+
 export default function Home() {
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
@@ -69,6 +75,8 @@ export default function Home() {
       inputRef.current?.focus();
       return;
     }
+
+    notifyAdsInteraction();
 
     setLoading(true);
     setError(null);
